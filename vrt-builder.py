@@ -7,6 +7,7 @@ from osgeo import gdal
 from minio import Minio
 
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -41,10 +42,7 @@ def main():
 
     for obj in objects_found:
         if str(obj.object_name).endswith('.tif'):
-            composed_path = '/vsicurl/{s3Endpoint}/{bucketName}/{object}'.format(
-                s3Endpoint=s3_endpoint, bucketName=tif_bucket_name, object=obj.object_name
-            )
-            tifs.append(composed_path)
+            tifs.append(f'/vsicurl/{s3_endpoint}/{tif_bucket_name}/{str(obj.object_name)}')
 
     directory = os.path.dirname(output_path)
     if not os.path.exists(directory):
