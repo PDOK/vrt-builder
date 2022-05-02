@@ -1,45 +1,61 @@
 import os
+from datetime import datetime
+import argparse
+import logging
 
 from osgeo import gdal
 from minio import Minio
-from datetime import datetime
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--input_bucket')
-parser.add_argument('--input_path')
-parser.add_argument('--output_path', default='output.vrt')
-args = parser.parse_args()
-
-s3Endpoint = os.environ['S3_ENDPOINT']
-s3EndpointNoProtocol = os.environ['S3_ENDPOINT_NO_PROTOCOL']
-s3AccessKey = os.environ['S3_ACCESS_KEY']
-s3SecretKey = os.environ['S3_SECRET_KEY']
-tifBucketName = args.input_bucket
-tifPath = args.input_path
-outputPath = args.output_path
-
-mc = Minio(endpoint=s3EndpointNoProtocol,
-           access_key=s3AccessKey,
-           secret_key=s3SecretKey)
-
-objectsFound = mc.list_objects(bucket_name=tifBucketName, prefix=tifPath)
-tifs = []
-
-for obj in objectsFound:
-    if str(obj.object_name).endswith('.tif'):
-        composedPath = '/vsicurl/{s3Endpoint}/{bucketName}/{object}'.format(
-            s3Endpoint=s3Endpoint, bucketName=tifBucketName, object=obj.object_name
-        )
-        tifs.append(composedPath)
 
 
-directory = os.path.dirname(outputPath)
-if not os.path.exists(directory):
-    os.makedirs(directory)
+logger = logging.getLogger(__name__)
 
-print('Building VRT....')
-print(datetime.now())
-vr = gdal.BuildVRT(outputPath, tifs)
-print('Done!')
-print(datetime.now())
+
+def handle_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_bucket')
+    parser.add_argument('--input_path')
+    parser.add_argument('--output_path', default='output.vrt')
+    return parser.parse_args()
+
+
+def main():
+    args = handle_args()
+    s3_endpoint = os.environ['S3_ENDPOINT']
+    s3_endpoint_no_protocol = os.environ['S3_ENDPOINT_NO_PROTOCOL']
+    s3_access_key = os.environ['S3_ACCESS_KEY']
+    s3_secret_key = os.environ['S3_SECRET_KEY']
+    tif_bucket_name = args.input_bucket
+    tif_path = args.input_path
+    output_path = args.output_path
+
+    if not str(tif_path).endswith('/'):
+        logger.error('input_path must end with /')
+        exit(1)
+
+    mc = Minio(endpoint=s3_endpoint_no_protocol,
+               access_key=s3_access_key,
+               secret_key=s3_secret_key)
+
+    objects_found = mc.list_objects(bucket_name=tif_bucket_name, prefix=tif_path)
+    tifs = []
+
+    for obj in objects_found:
+        if str(obj.object_name).endswith('.tif'):
+            composed_path = '/vsicurl/{s3Endpoint}/{bucketName}/{object}'.format(
+                s3Endpoint=s3_endpoint, bucketName=tif_bucket_name, object=obj.object_name
+            )
+            tifs.append(composed_path)
+
+    directory = os.path.dirname(output_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    logger.info('Building VRT....')
+    logger.info(datetime.now())
+    vr = gdal.BuildVRT(output_path, tifs)
+    logger.info('Done!')
+    logger.info(datetime.now())
+
+
+if __name__ == "__main__":
+    main()
