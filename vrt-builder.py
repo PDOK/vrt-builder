@@ -37,7 +37,8 @@ def main():
 
     mc = Minio(endpoint=s3_endpoint_no_protocol,
                access_key=s3_access_key,
-               secret_key=s3_secret_key)
+               secret_key=s3_secret_key,
+               secure=False)
 
     objects_found = mc.list_objects(bucket_name=tif_bucket_name, prefix=tif_path)
     tifs = []
